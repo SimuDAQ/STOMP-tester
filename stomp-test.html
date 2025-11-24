@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STOMP WebSocket Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .left-panel {
+            flex: 1;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .right-panel {
+            width: 500px;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+
+        .log-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-section h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .section h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: monospace;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            margin-top: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .btn-disconnect {
+            background-color: #f44336;
+        }
+
+        .btn-disconnect:hover {
+            background-color: #da190b;
+        }
+
+        .btn-send {
+            background-color: #2196F3;
+        }
+
+        .btn-send:hover {
+            background-color: #0b7dda;
+        }
+
+        .btn-subscribe {
+            background-color: #FF9800;
+        }
+
+        .btn-subscribe:hover {
+            background-color: #e68900;
+        }
+
+        .btn-unsubscribe {
+            background-color: #9E9E9E;
+        }
+
+        .btn-unsubscribe:hover {
+            background-color: #757575;
+        }
+
+        .btn-clear {
+            background-color: #607D8B;
+        }
+
+        .btn-clear:hover {
+            background-color: #455A64;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.connecting {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .log {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid transparent;
+        }
+
+        .log-entry.info {
+            border-left-color: #2196F3;
+        }
+
+        .log-entry.success {
+            border-left-color: #4CAF50;
+        }
+
+        .log-entry.error {
+            border-left-color: #f44336;
+            color: #ff6b6b;
+        }
+
+        .log-entry.received {
+            border-left-color: #FF9800;
+            background-color: #2a2a2a;
+        }
+
+        .timestamp {
+            color: #888;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+
+        .subscriptions {
+            margin-top: 10px;
+        }
+
+        .subscription-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background-color: white;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .subscription-item span {
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .examples {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .examples h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .example-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border: 1px solid #e0e0e0;
+        }
+
+        .example-item:hover {
+            background-color: #e8f5e9;
+            border-color: #4CAF50;
+        }
+
+        .example-item .label {
+            font-weight: 500;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .example-item .value {
+            font-family: monospace;
+            color: #666;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <h1>STOMP WebSocket Tester</h1>
+
+            <div class="section">
+                <h2>연결 설정</h2>
+                <div class="status" id="status" class="disconnected">
+                    연결 끊김
+                </div>
+                <div class="form-group">
+                    <label for="brokerUrl">WebSocket URL:</label>
+                    <input type="text" id="brokerUrl" value="" placeholder="예: ws://localhost:8080/ws">
+                </div>
+                <div class="examples">
+                    <h3>예시 URL:</h3>
+                    <div class="example-item" onclick="setUrl('ws://localhost:8080/stock')">
+                        <div class="label">로컬 개발 서버</div>
+                        <div class="value">ws://localhost:8080/stock</div>
+                    </div>
+                </div>
+                <div>
+                    <button id="connectBtn" onclick="connect()">연결</button>
+                    <button id="disconnectBtn" class="btn-disconnect" onclick="disconnect()" disabled>연결 해제</button>
+                    <button id="stopBtn" class="btn-disconnect" onclick="stopReconnect()" disabled>재연결 중지</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>구독 관리</h2>
+                <div class="form-group">
+                    <label for="subscribePath">구독 경로:</label>
+                    <input type="text" id="subscribePath" value="" placeholder="예: /topic/messages">
+                </div>
+                <div class="examples">
+                    <h3>예시 경로:</h3>
+                    <div class="example-item" onclick="setSubscribePath('/user/queue/reply')">
+                        <div class="label">개인 큐 (User-specific)</div>
+                        <div class="value">/user/queue/reply</div>
+                    </div>
+                    <div class="example-item" onclick="setSubscribePath('/topic/stock/005930')">
+                        <div class="label">주식 토픽 (삼성전자)</div>
+                        <div class="value">/topic/stock/005930</div>
+                    </div>
+                    <div class="example-item" onclick="setSubscribePath('/topic/stock/000660')">
+                        <div class="label">주식 토픽 (SK하이닉스)</div>
+                        <div class="value">/topic/stock/000660</div>
+                    </div>
+                </div>
+                <div>
+                    <button id="subscribeBtn" class="btn-subscribe" onclick="subscribe()" disabled>구독</button>
+                </div>
+                <div class="subscriptions" id="subscriptions"></div>
+            </div>
+
+            <div class="section">
+                <h2>메시지 전송</h2>
+                <div class="form-group">
+                    <label for="destination">전송 경로:</label>
+                    <input type="text" id="destination" value="" placeholder="예: /app/message">
+                </div>
+                <div class="examples">
+                    <h3>예시 경로:</h3>
+                    <div class="example-item" onclick="setDestination('/app/stock/subscribe')">
+                        <div class="label">주식 구독</div>
+                        <div class="value">/app/stock/subscribe</div>
+                    </div>
+                    <div class="example-item" onclick="setDestination('/app/stock/unsubscribe')">
+                        <div class="label">주식 구독 해제</div>
+                        <div class="value">/app/stock/unsubscribe</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="messageBody">메시지 내용 (JSON):</label>
+                    <textarea id="messageBody" placeholder='{"content": "Hello STOMP"}'></textarea>
+                </div>
+                <div class="examples">
+                    <h3>예시 메시지:</h3>
+                    <div class="example-item" onclick="setMessageBody(example1)">
+                        <div class="label">삼성전자 구독</div>
+                        <div class="value">{"stockCode": "005930"}</div>
+                    </div>
+                    <div class="example-item" onclick="setMessageBody(example2)">
+                        <div class="label">SK하이닉스 구독</div>
+                        <div class="value">{"stockCode": "000660"}</div>
+                    </div>
+                    <div class="example-item" onclick="setMessageBody(example3)">
+                        <div class="label">주식 코드 입력</div>
+                        <div class="value">{"stockCode": ""}</div>
+                    </div>
+                </div>
+                <div>
+                    <button id="sendBtn" class="btn-send" onclick="sendMessage()" disabled>전송</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="log-section">
+                <h2>로그</h2>
+                <div class="log" id="log"></div>
+                <div style="margin-top: 10px;">
+                    <button class="btn-clear" onclick="clearLog()">로그 지우기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+    <script>
+        let stompClient = null;
+        let subscriptions = new Map();
+        let isConnecting = false;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${escapeHtml(message)}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function updateStatus(status) {
+            const statusDiv = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const subscribeBtn = document.getElementById('subscribeBtn');
+            const sendBtn = document.getElementById('sendBtn');
+
+            if (status === 'connected') {
+                statusDiv.textContent = '연결됨';
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                stopBtn.disabled = true;
+                subscribeBtn.disabled = false;
+                sendBtn.disabled = false;
+                isConnecting = false;
+            } else if (status === 'connecting') {
+                statusDiv.textContent = '연결 시도 중...';
+                statusDiv.className = 'status connecting';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = true;
+                stopBtn.disabled = false;
+                subscribeBtn.disabled = true;
+                sendBtn.disabled = true;
+                isConnecting = true;
+            } else {
+                statusDiv.textContent = '연결 끊김';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                stopBtn.disabled = true;
+                subscribeBtn.disabled = true;
+                sendBtn.disabled = true;
+                isConnecting = false;
+            }
+        }
+
+        function connect() {
+            const brokerUrl = document.getElementById('brokerUrl').value;
+
+            log(`연결 시도: ${brokerUrl}`, 'info');
+            updateStatus('connecting');
+
+            stompClient = new StompJs.Client({
+                brokerURL: brokerUrl,
+                reconnectDelay: 5000,
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000,
+
+                onConnect: (frame) => {
+                    log('STOMP 연결 성공!', 'success');
+                    log(`Connected: ${frame}`, 'info');
+                    updateStatus('connected');
+                },
+
+                onStompError: (frame) => {
+                    log('STOMP 오류 발생', 'error');
+                    log(`Error: ${frame.headers['message']}`, 'error');
+                    log(`Details: ${frame.body}`, 'error');
+                },
+
+                onWebSocketError: (event) => {
+                    log('WebSocket 오류 발생 - 재연결을 시도합니다...', 'error');
+                    log(`Error: ${event}`, 'error');
+                    if (!isConnecting) {
+                        updateStatus('connecting');
+                    }
+                },
+
+                onWebSocketClose: (event) => {
+                    log('WebSocket 연결 종료', 'info');
+                    if (stompClient && stompClient.active) {
+                        log('재연결을 시도합니다...', 'info');
+                        updateStatus('connecting');
+                    } else {
+                        updateStatus('disconnected');
+                    }
+                    clearSubscriptions();
+                },
+
+                debug: (str) => {
+                    log(`DEBUG: ${str}`, 'info');
+                }
+            });
+
+            stompClient.activate();
+        }
+
+        function disconnect() {
+            if (stompClient) {
+                stompClient.deactivate();
+                log('연결 해제 중...', 'info');
+            }
+        }
+
+        function stopReconnect() {
+            if (stompClient) {
+                log('재연결 중지 - 완전히 연결을 종료합니다.', 'info');
+                stompClient.deactivate();
+                updateStatus('disconnected');
+            }
+        }
+
+        function subscribe() {
+            const path = document.getElementById('subscribePath').value;
+            console.log(path);
+            if (!path) {
+                alert('구독 경로를 입력하세요.');
+                return;
+            }
+
+            if (subscriptions.has(path)) {
+                alert('이미 구독 중인 경로입니다.');
+                return;
+            }
+
+            const subscription = stompClient.subscribe(path, (message) => {
+                log(`메시지 수신 [${path}]:`, 'received');
+                log(`Headers: ${JSON.stringify(message.headers)}`, 'received');
+                log(`Body: ${message.body}`, 'received');
+
+                try {
+                    const jsonBody = JSON.parse(message.body);
+                    log(`Parsed JSON: ${JSON.stringify(jsonBody, null, 2)}`, 'received');
+                } catch (e) {
+                    // JSON이 아닌 경우 무시
+                }
+            });
+
+            subscriptions.set(path, subscription);
+            log(`구독 시작: ${path}`, 'success');
+            updateSubscriptionsList();
+        }
+
+        function unsubscribe(path) {
+            const subscription = subscriptions.get(path);
+            if (subscription) {
+                subscription.unsubscribe();
+                subscriptions.delete(path);
+                log(`구독 해제: ${path}`, 'info');
+                updateSubscriptionsList();
+            }
+        }
+
+        function updateSubscriptionsList() {
+            const container = document.getElementById('subscriptions');
+            container.innerHTML = '';
+
+            if (subscriptions.size === 0) {
+                return;
+            }
+
+            subscriptions.forEach((subscription, path) => {
+                const item = document.createElement('div');
+                item.className = 'subscription-item';
+                item.innerHTML = `
+                    <span>${escapeHtml(path)}</span>
+                    <button class="btn-unsubscribe" onclick="unsubscribe('${escapeHtml(path)}')">구독 해제</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function clearSubscriptions() {
+            subscriptions.clear();
+            updateSubscriptionsList();
+        }
+
+        function sendMessage() {
+            const destination = document.getElementById('destination').value;
+            const messageBody = document.getElementById('messageBody').value;
+
+            if (!destination) {
+                alert('전송 경로를 입력하세요.');
+                return;
+            }
+
+            if (!messageBody) {
+                alert('메시지 내용을 입력하세요.');
+                return;
+            }
+
+            try {
+                // JSON 유효성 검사
+                JSON.parse(messageBody);
+
+                stompClient.publish({
+                    destination: destination,
+                    body: messageBody,
+                    headers: {
+                        'content-type': 'application/json'
+                    }
+                });
+
+                log(`메시지 전송 [${destination}]:`, 'success');
+                log(`Body: ${messageBody}`, 'success');
+            } catch (e) {
+                alert('유효하지 않은 JSON 형식입니다: ' + e.message);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // 예시 값 설정 함수들
+        function setUrl(url) {
+            document.getElementById('brokerUrl').value = url;
+            log(`URL 설정: ${url}`, 'info');
+        }
+
+        function setSubscribePath(path) {
+            document.getElementById('subscribePath').value = path;
+            log(`구독 경로 설정: ${path}`, 'info');
+        }
+
+        function setDestination(dest) {
+            document.getElementById('destination').value = dest;
+            log(`전송 경로 설정: ${dest}`, 'info');
+        }
+
+        function setMessageBody(message) {
+            document.getElementById('messageBody').value = message;
+            log(`메시지 본문 설정`, 'info');
+        }
+
+        // 예시 메시지 템플릿
+        const example1 = JSON.stringify({
+            "stockCode": "005930"
+        }, null, 2);
+
+        const example2 = JSON.stringify({
+            "stockCode": "000660"
+        }, null, 2);
+
+        const example3 = JSON.stringify({
+            "stockCode": ""
+        }, null, 2);
+
+        // 초기 로그
+        log('STOMP WebSocket Tester 준비 완료', 'info');
+        log('예시 항목을 클릭하여 값을 빠르게 입력할 수 있습니다.', 'info');
+    </script>
+</body>
+</html>
