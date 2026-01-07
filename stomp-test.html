@@ -43,6 +43,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
+            overflow-y: auto;
         }
 
         h1 {
@@ -198,6 +199,41 @@
             font-family: 'Courier New', monospace;
             font-size: 13px;
             line-height: 1.5;
+            min-height: 0;
+        }
+
+        /* 스크롤바 스타일링 */
+        .log::-webkit-scrollbar,
+        .right-panel::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .log::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+
+        .right-panel::-webkit-scrollbar-track {
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .log::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+            border-radius: 4px;
+        }
+
+        .right-panel::-webkit-scrollbar-thumb {
+            background: #c0c0c0;
+            border-radius: 4px;
+        }
+
+        .log::-webkit-scrollbar-thumb:hover {
+            background: #5a5a5a;
+        }
+
+        .right-panel::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
         }
 
         .log-entry {
@@ -305,13 +341,22 @@
                 </div>
                 <div class="form-group">
                     <label for="brokerUrl">WebSocket URL:</label>
-                    <input type="text" id="brokerUrl" value="" placeholder="예: ws://localhost:8080/ws">
+                    <input type="text" id="brokerUrl" value="" placeholder="예: ws://localhost:8080/ws 또는 http://localhost:8080/ws (SockJS)">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="useSockJS" onchange="toggleSockJS()"> SockJS 사용
+                    </label>
                 </div>
                 <div class="examples">
                     <h3>예시 URL:</h3>
-                    <div class="example-item" onclick="setUrl('ws://localhost:8080/stock')">
-                        <div class="label">로컬 개발 서버</div>
+                    <div class="example-item" onclick="setUrl('ws://localhost:8080/stock', false)">
+                        <div class="label">로컬 개발 서버 (WebSocket)</div>
                         <div class="value">ws://localhost:8080/stock</div>
+                    </div>
+                    <div class="example-item" onclick="setUrl('http://localhost:8080/stock', true)">
+                        <div class="label">로컬 개발 서버 (SockJS)</div>
+                        <div class="value">http://localhost:8080/stock</div>
                     </div>
                 </div>
                 <div>
@@ -401,11 +446,13 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
     <script>
         let stompClient = null;
         let subscriptions = new Map();
         let isConnecting = false;
+        let useSockJS = false;
 
         function log(message, type = 'info') {
             const logDiv = document.getElementById('log');
@@ -413,8 +460,7 @@
             const entry = document.createElement('div');
             entry.className = `log-entry ${type}`;
             entry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${escapeHtml(message)}`;
-            logDiv.appendChild(entry);
-            logDiv.scrollTop = logDiv.scrollHeight;
+            logDiv.insertBefore(entry, logDiv.firstChild);
         }
 
         function escapeHtml(text) {
@@ -463,12 +509,12 @@
 
         function connect() {
             const brokerUrl = document.getElementById('brokerUrl').value;
+            useSockJS = document.getElementById('useSockJS').checked;
 
-            log(`연결 시도: ${brokerUrl}`, 'info');
+            log(`연결 시도: ${brokerUrl} (${useSockJS ? 'SockJS' : 'WebSocket'})`, 'info');
             updateStatus('connecting');
 
-            stompClient = new StompJs.Client({
-                brokerURL: brokerUrl,
+            const clientConfig = {
                 reconnectDelay: 5000,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
@@ -507,8 +553,19 @@
                 debug: (str) => {
                     log(`DEBUG: ${str}`, 'info');
                 }
-            });
+            };
 
+            if (useSockJS) {
+                // SockJS 사용
+                clientConfig.webSocketFactory = () => {
+                    return new SockJS(brokerUrl);
+                };
+            } else {
+                // 일반 WebSocket 사용
+                clientConfig.brokerURL = brokerUrl;
+            }
+
+            stompClient = new StompJs.Client(clientConfig);
             stompClient.activate();
         }
 
@@ -630,9 +687,16 @@
         }
 
         // 예시 값 설정 함수들
-        function setUrl(url) {
+        function setUrl(url, sockjs) {
             document.getElementById('brokerUrl').value = url;
-            log(`URL 설정: ${url}`, 'info');
+            document.getElementById('useSockJS').checked = sockjs;
+            useSockJS = sockjs;
+            log(`URL 설정: ${url} (${sockjs ? 'SockJS' : 'WebSocket'})`, 'info');
+        }
+
+        function toggleSockJS() {
+            useSockJS = document.getElementById('useSockJS').checked;
+            log(`${useSockJS ? 'SockJS' : 'WebSocket'} 모드로 전환`, 'info');
         }
 
         function setSubscribePath(path) {
